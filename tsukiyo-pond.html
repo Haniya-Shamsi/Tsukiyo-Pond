@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tsukiyo Pond — Spirit Fishing</title>
+<style>
+  :root{
+    --night:#0d1230;
+    --ink:#131a3d;
+    --panel:#161e44;
+    --moon:#eef1fb;
+    --gold:#f2c14e;
+    --sakura:#f4a7b9;
+    --mist:#8fa3c8;
+    --water:#123c4d;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--night);
+    font-family:-apple-system,"Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+    touch-action:none;user-select:none;-webkit-user-select:none;}
+  #game{position:fixed;inset:0;display:block;}
+
+  .serif{font-family:"Hiragino Mincho ProN","Yu Mincho",Georgia,serif;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;top:0;left:0;right:0;padding:14px 16px;display:flex;
+    justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5;}
+  .hud-pill{pointer-events:auto;background:rgba(13,18,48,.72);border:1px solid rgba(143,163,200,.35);
+    backdrop-filter:blur(6px);border-radius:999px;color:var(--moon);padding:9px 16px;
+    font-size:14px;letter-spacing:.04em;display:flex;align-items:center;gap:8px;}
+  #journalBtn{cursor:pointer;transition:transform .15s, border-color .2s;}
+  #journalBtn:active{transform:scale(.94);}
+  #journalBtn.pulse{border-color:var(--gold);box-shadow:0 0 14px rgba(242,193,78,.35);}
+  .fishcount{color:var(--gold);font-weight:600;}
+
+  /* ---------- Title ---------- */
+  #title{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;z-index:20;background:radial-gradient(ellipse at 50% 30%,rgba(20,28,66,.4),rgba(9,12,32,.88));
+    transition:opacity 1.2s;}
+  #title.hide{opacity:0;pointer-events:none;}
+  #title h1{color:var(--moon);font-size:clamp(34px,8vw,62px);font-weight:500;letter-spacing:.28em;
+    text-indent:.28em;margin-bottom:6px;text-shadow:0 0 30px rgba(238,241,251,.35);}
+  #title .jp{color:var(--sakura);letter-spacing:.6em;text-indent:.6em;font-size:clamp(14px,3vw,19px);margin-bottom:34px;opacity:.9;}
+  #title .hint{color:var(--mist);font-size:15px;letter-spacing:.08em;animation:breathe 2.6s ease-in-out infinite;}
+  @keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
+
+  /* ---------- Toast messages ---------- */
+  #toast{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:8;
+    color:var(--moon);background:rgba(13,18,48,.78);border:1px solid rgba(143,163,200,.3);
+    padding:11px 22px;border-radius:999px;font-size:15px;letter-spacing:.05em;
+    opacity:0;transition:opacity .4s;pointer-events:none;text-align:center;max-width:86vw;}
+  #toast.show{opacity:1;}
+
+  /* ---------- Reel UI ---------- */
+  #reelUI{position:fixed;left:50%;bottom:9%;transform:translateX(-50%);width:min(400px,84vw);
+    z-index:6;display:none;flex-direction:column;gap:10px;pointer-events:none;}
+  #reelUI.on{display:flex;}
+  .bar{height:16px;border-radius:999px;background:rgba(13,18,48,.75);
+    border:1px solid rgba(143,163,200,.4);overflow:hidden;position:relative;}
+  .bar>i{position:absolute;inset:0;transform-origin:left;transform:scaleX(0);border-radius:999px;}
+  #progFill{background:linear-gradient(90deg,#7fd8c8,#f2c14e);}
+  #tensFill{background:linear-gradient(90deg,#f2c14e,#e86a5d);}
+  .bar-label{color:var(--mist);font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:3px;}
+  #reelHint{color:var(--moon);text-align:center;font-size:14px;letter-spacing:.06em;
+    background:rgba(13,18,48,.7);border-radius:999px;padding:7px 14px;border:1px solid rgba(143,163,200,.3);}
+  #reelHint b{color:var(--gold);font-weight:600;}
+  #reelUI.strain #tensFill{box-shadow:0 0 12px rgba(232,106,93,.8);}
+
+  /* ---------- Overlays: catch card & journal ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(7,10,26,.74);backdrop-filter:blur(4px);
+    z-index:30;display:none;align-items:center;justify-content:center;padding:20px;}
+  .scrim.on{display:flex;}
+  .card{background:linear-gradient(170deg,#1b2452,#121838);border:1px solid rgba(143,163,200,.45);
+    border-radius:22px;padding:26px 26px 22px;width:min(360px,92vw);text-align:center;
+    box-shadow:0 24px 70px rgba(0,0,0,.55);animation:cardIn .45s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes cardIn{from{transform:translateY(26px) scale(.92);opacity:0;}to{transform:none;opacity:1;}}
+  .card .newtag{display:inline-block;background:var(--gold);color:#21243f;font-size:11px;font-weight:700;
+    letter-spacing:.22em;padding:4px 12px;border-radius:999px;margin-bottom:12px;text-transform:uppercase;}
+  .card canvas{width:100%;height:150px;border-radius:14px;background:radial-gradient(ellipse at 50% 40%,#17395c,#0b1a30);
+    border:1px solid rgba(143,163,200,.25);}
+  .card h2{color:var(--moon);font-size:26px;font-weight:500;letter-spacing:.12em;margin-top:16px;}
+  .card .jpname{color:var(--sakura);letter-spacing:.35em;font-size:13px;margin-top:4px;}
+  .card .stars{color:var(--gold);font-size:15px;letter-spacing:.3em;margin-top:9px;}
+  .card .flavor{color:var(--mist);font-size:14px;line-height:1.55;margin-top:11px;font-style:italic;}
+  .btn{margin-top:20px;background:transparent;color:var(--gold);border:1px solid var(--gold);
+    border-radius:999px;padding:11px 30px;font-size:14px;letter-spacing:.14em;cursor:pointer;
+    transition:background .2s,color .2s,transform .1s;}
+  .btn:active{transform:scale(.95);background:var(--gold);color:#21243f;}
+
+  /* Journal */
+  #journalCard{width:min(560px,94vw);max-height:86vh;overflow:auto;text-align:left;}
+  #journalCard h2{text-align:center;letter-spacing:.3em;font-size:21px;}
+  #journalCard .sub{text-align:center;color:var(--mist);font-size:13px;margin-top:6px;letter-spacing:.06em;}
+  #jGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:18px;}
+  .jslot{background:rgba(13,18,48,.6);border:1px solid rgba(143,163,200,.22);border-radius:14px;
+    padding:10px 8px;text-align:center;min-height:118px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;}
+  .jslot.caught{border-color:rgba(242,193,78,.5);}
+  .jslot canvas{width:84px;height:52px;}
+  .jslot .n{color:var(--moon);font-size:12.5px;letter-spacing:.05em;}
+  .jslot .r{color:var(--gold);font-size:10px;letter-spacing:.25em;}
+  .jslot.unknown .n{color:var(--mist);}
+  .jslot .q{color:var(--mist);font-size:30px;opacity:.5;height:52px;display:flex;align-items:center;}
+  #journalClose{display:block;margin:20px auto 4px;}
+
+  @media (prefers-reduced-motion: reduce){
+    #title .hint{animation:none;}
+    .card{animation:none;}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hud-pill serif" id="pondName">月夜の池 · Tsukiyo Pond</div>
+  <div class="hud-pill" id="journalBtn">📖 Journal <span class="fishcount" id="countLabel">0/12</span></div>
+</div>
+
+<div id="toast"></div>
+
+<div id="reelUI">
+  <div>
+    <div class="bar-label">Catch</div>
+    <div class="bar"><i id="progFill"></i></div>
+  </div>
+  <div>
+    <div class="bar-label">Line tension</div>
+    <div class="bar"><i id="tensFill"></i></div>
+  </div>
+  <div id="reelHint"><b>Hold</b> to reel · <b>let go</b> when it struggles</div>
+</div>
+
+<div id="title">
+  <h1 class="serif">TSUKIYO POND</h1>
+  <div class="jp serif">月夜の池 — スピリット釣り</div>
+  <button class="btn" id="startBtn" style="font-size:18px;padding:16px 52px;letter-spacing:.3em;text-indent:.3em;">START</button>
+  <div class="hint" style="margin-top:26px;">then tap the water to cast your line</div>
+</div>
+
+<div class="scrim" id="catchScrim">
+  <div class="card">
+    <div class="newtag" id="newTag">New spirit</div>
+    <canvas id="cardCanvas" width="440" height="220"></canvas>
+    <h2 class="serif" id="cardName"></h2>
+    <div class="jpname serif" id="cardJp"></div>
+    <div class="stars" id="cardStars"></div>
+    <div class="flavor serif" id="cardFlavor"></div>
+    <button class="btn" id="cardBtn">Keep fishing</button>
+  </div>
+</div>
+
+<div class="scrim" id="journalScrim">
+  <div class="card" id="journalCard">
+    <h2 class="serif">SPIRIT JOURNAL</h2>
+    <div class="sub" id="jSub"></div>
+    <div id="jGrid"></div>
+    <button class="btn" id="journalClose">Back to the pond</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   TSUKIYO POND — spirit fishing under the moon
+   Legend: one fish bites only where moonlight touches water.
+   ========================================================= */
+
+const cvs = document.getElementById("game");
+const ctx = cvs.getContext("2d");
+let W = 0, H = 0, DPR = 1, WATERLINE = 0;
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.width = W * DPR; cvs.height = H * DPR;
+  cvs.style.width = W + "px"; cvs.style.height = H + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  WATERLINE = H * 0.30;
+}
+window.addEventListener("resize", resize);
+resize();
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+
+/* ---------------- audio (gentle, synthesized) ---------------- */
+let AC = null;
+function audio(){ if(!AC){ try{ AC = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(AC && AC.state==="suspended") AC.resume(); return AC; }
+function tone(freq, dur, type, vol, when=0, glide=0){
+  const ac = AC; if(!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.value = freq;
+  if(glide) o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+glide), ac.currentTime+when+dur);
+  g.gain.setValueAtTime(0, ac.currentTime+when);
+  g.gain.linearRampToValueAtTime(vol, ac.currentTime+when+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+when+dur);
+  o.connect(g).connect(ac.destination);
+  o.start(ac.currentTime+when); o.stop(ac.currentTime+when+dur+0.05);
+}
+function noiseBurst(dur, vol, cutoff){
+  const ac = AC; if(!ac) return;
+  const len = ac.sampleRate * dur, buf = ac.createBuffer(1, len, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const f = ac.createBiquadFilter(); f.type="lowpass"; f.frequency.value = cutoff;
+  const g = ac.createGain(); g.gain.value = vol;
+  src.connect(f).connect(g).connect(ac.destination); src.start();
+}
+const sfx = {
+  plop(){ noiseBurst(0.16, 0.5, 900); tone(180, 0.14, "sine", 0.28, 0, -110); },
+  nibble(){ tone(660, 0.06, "sine", 0.14); },
+  bite(){ tone(880, 0.09, "triangle", 0.3); tone(1174, 0.1, "triangle", 0.26, 0.07); },
+  snap(){ tone(320, 0.28, "sawtooth", 0.16, 0, -240); noiseBurst(0.1, 0.25, 2400); },
+  strain(){ tone(140, 0.08, "square", 0.05); },
+  catch(rar){
+    const scale = [523, 587, 659, 784, 880, 1046]; // C D E G A C — pentatonic
+    for(let i=0;i<3+rar;i++) tone(scale[i%scale.length]*(i>=scale.length?2:1), 0.5, "sine", 0.2, i*0.11);
+  }
+};
+
+/* ---------------- species ---------------- */
+const SPECIES = [
+ {id:"shirayuki", name:"Shirayuki", jp:"白雪", rarity:1, size:15, fight:1.0, curiosity:.75,
+  body:"#f2f3f6", belly:"#ffffff", fin:"#dfe4ef", spots:[], glow:0,
+  flavor:"Snow that decided to keep swimming."},
+ {id:"kohaku", name:"Kohaku", jp:"紅白", rarity:1, size:16, fight:1.0, curiosity:.72,
+  body:"#f4f2ee", belly:"#ffffff", fin:"#eadfd4", spots:[["#e2603f",-.28,0,.34],["#e2603f",.22,.06,.28]], glow:0,
+  flavor:"The pond's little morning sun."},
+ {id:"sumi", name:"Sumi", jp:"墨", rarity:1, size:16, fight:1.1, curiosity:.65,
+  body:"#2b2f3f", belly:"#454b61", fin:"#20232f", spots:[["#11131c",-.1,-.05,.3]], glow:0,
+  flavor:"An ink drop that never dissolved."},
+ {id:"kingyo", name:"Kingyo", jp:"金魚", rarity:1, size:11, fight:0.8, curiosity:.85,
+  body:"#f08a3c", belly:"#ffb877", fin:"#f0a05c", spots:[], glow:0,
+  flavor:"Small, quick, endlessly cheerful."},
+ {id:"momiji", name:"Momiji", jp:"紅葉", rarity:2, size:17, fight:1.25, curiosity:.6,
+  body:"#c8452f", belly:"#e8836a", fin:"#a83322", spots:[["#f2c14e",-.15,-.08,.2],["#8c2418",.25,.05,.24]], glow:0,
+  flavor:"Carries a whole autumn on its back."},
+ {id:"aonami", name:"Aonami", jp:"青波", rarity:2, size:17, fight:1.3, curiosity:.58,
+  body:"#3f6fb5", belly:"#8db4e2", fin:"#2f4f86", spots:[["#dfe9f7",-.2,-.06,.22]], glow:0,
+  flavor:"A wave that broke away from the sea."},
+ {id:"hotaru", name:"Hotaru", jp:"蛍", rarity:2, size:14, fight:1.15, curiosity:.62,
+  body:"#b8d96a", belly:"#e7f5b0", fin:"#93b84f", spots:[], glow:1,
+  flavor:"Glows brighter when fireflies sing."},
+ {id:"kasumi", name:"Kasumi", jp:"霞", rarity:2, size:16, fight:1.2, curiosity:.55,
+  body:"#9aa4bd", belly:"#c6cddd", fin:"#7e88a3", spots:[["#6b7590",-.1,0,.3]], glow:0,
+  flavor:"Half fish, half fog. Hard to say which half."},
+ {id:"ginrin", name:"Ginrin", jp:"銀鱗", rarity:3, size:18, fight:1.6, curiosity:.42,
+  body:"#cfd8ea", belly:"#f4f7ff", fin:"#aebbd6", spots:[["#93a3c4",-.2,-.05,.2],["#93a3c4",.18,.04,.18]], glow:2,
+  flavor:"Scales stitched from starlight."},
+ {id:"ayakashi", name:"Ayakashi", jp:"妖", rarity:3, size:19, fight:1.7, curiosity:.4,
+  body:"#8fd8d2", belly:"#d2f4ef", fin:"#6fb8b2", spots:[], glow:1, ghost:1,
+  flavor:"You can see the moon straight through it."},
+ {id:"ryunoko", name:"Ryū no Ko", jp:"竜の子", rarity:3, size:21, fight:1.9, curiosity:.36,
+  body:"#4f8f6a", belly:"#a7d8b8", fin:"#3a6e50", spots:[["#f2c14e",-.3,0,.16],["#f2c14e",0,-.07,.14],["#f2c14e",.24,.05,.14]], glow:0, whisker:1,
+  flavor:"A dragon, still practicing being small."},
+ {id:"tsukiyo", name:"Tsukiyo", jp:"月夜", rarity:4, size:24, fight:2.4, curiosity:1,
+  body:"#eef1fb", belly:"#ffffff", fin:"#cfd9f4", spots:[["#f2c14e",-.15,-.06,.2]], glow:3, moonOnly:1,
+  flavor:"The moon's reflection, alive. It answers only a lure resting in moonlight."}
+];
+const STARS = ["","✦","✦✦","✦✦✦","✦✦✦✦"];
+const RARITY_NAME = ["","Common","Uncommon","Rare","Legendary"];
+
+const caught = {};           // id -> count
+let caughtSpecies = 0;
+let hintedMoon = false;
+
+/* ---------------- scene decor ---------------- */
+const stars = Array.from({length:90}, () => ({x:Math.random(), y:Math.random()*0.9, r:rand(.4,1.4), tw:rand(0,TAU), sp:rand(.5,1.6)}));
+const fireflies = Array.from({length:10}, () => ({x:rand(0,1), y:rand(.34,.6), t:rand(0,TAU), sp:rand(.3,.8), amp:rand(10,30)}));
+let shoot = null; // shooting star
+const pads = [];  // lily pads
+function makePads(){
+  pads.length = 0;
+  const n = Math.max(3, Math.round(W/260));
+  for(let i=0;i<n;i++){
+    pads.push({x:rand(.05,.95)*W, y:rand(WATERLINE+40, H-70), r:rand(20,38), a:rand(0,TAU), bob:rand(0,TAU), flower:Math.random()<.35});
+  }
+}
+makePads();
+const reeds = Array.from({length:14}, (_,i)=>({x:Math.random(), h:rand(40,110), lean:rand(-.12,.12), ph:rand(0,TAU), left:i%2===0}));
+
+/* moon position + its reflection beam */
+function moonX(){ return W * 0.68; }
+function moonY(){ return H * 0.13; }
+function beam(){ const bw = clamp(W*0.11, 70, 150); return {x: moonX(), w: bw}; }
+function inBeam(x){ const b = beam(); return Math.abs(x - b.x) < b.w/2; }
+
+/* ---------------- ripples & particles ---------------- */
+const ripples = [];
+function ripple(x, y, big=1){ ripples.push({x, y, r:4, max:rand(26,44)*big, a:.55, sp:rand(26,40)*big}); }
+const sparkles = [];
+function burst(x, y, color, n=14){
+  for(let i=0;i<n;i++){
+    const a = rand(0,TAU), s = rand(20,90);
+    sparkles.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 40, life:rand(.5,1), t:0, c:color, r:rand(1.5,3.4)});
+  }
+}
+
+/* ---------------- fish ---------------- */
+const fishes = [];
+function pickSpecies(){
+  const r = Math.random();
+  let pool;
+  if(r < 0.58) pool = SPECIES.filter(s=>s.rarity===1);
+  else if(r < 0.87) pool = SPECIES.filter(s=>s.rarity===2);
+  else pool = SPECIES.filter(s=>s.rarity===3);
+  return pool[(Math.random()*pool.length)|0];
+}
+function spawnFish(sp, atBeam=false){
+  sp = sp || pickSpecies();
+  const b = beam();
+  const x = atBeam ? b.x + rand(-b.w/3, b.w/3) : rand(40, W-40);
+  const f = {
+    sp, x, y: rand(WATERLINE+60, H-60),
+    a: rand(0,TAU), speed: rand(14,26) * (sp.rarity===4 ? .7 : 1),
+    turn: 0, state:"wander", t: rand(0,TAU),
+    stateT: 0, nibbles: 0, wag: rand(0,TAU), life: sp.moonOnly ? rand(26,40) : Infinity
+  };
+  fishes.push(f);
+  return f;
+}
+for(let i=0;i<7;i++) spawnFish();
+let tsukiyoTimer = rand(20, 40);
+
+/* ---------------- game state ---------------- */
+/* idle | casting | waiting | hookwin | reeling | paused(overlay) */
+let mode = "idle";
+let lure = null;   // {x,y,tx,ty,t, dip, castFrom}
+let hooked = null; // fish being reeled
+let hookWinT = 0;
+let reel = {prog:0, tens:0, holding:false, struggle:false, strugT:0, calmT:1.5};
+let shake = 0;
+let started = false;
+
+const toastEl = document.getElementById("toast");
+let toastT = null;
+function toast(msg, ms=2600){
+  toastEl.textContent = msg; toastEl.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove("show"), ms);
+}
+
+/* ---------------- input ---------------- */
+const titleEl = document.getElementById("title");
+document.getElementById("startBtn").addEventListener("click", ()=>{
+  audio();
+  started = true;
+  titleEl.classList.add("hide");
+  toast("Tap the water to cast 🎣", 2600);
+});
+function pointerDown(e){
+  audio();
+  const p = pt(e);
+  if(!started) return; // waiting for the Start button
+  if(overlayOpen()) return;
+
+  if(mode === "hookwin"){ hookFish(); return; }
+  if(mode === "reeling"){ reel.holding = true; return; }
+  if(mode === "idle" || mode === "waiting"){
+    if(p.y > WATERLINE + 20 && p.y < H - 10){
+      cast(p.x, p.y);
+    }
+  }
+}
+function pointerUp(){ reel.holding = false; }
+function pt(e){
+  const t = e.touches ? e.touches[0] : e;
+  return {x: t.clientX, y: t.clientY};
+}
+cvs.addEventListener("pointerdown", pointerDown);
+window.addEventListener("pointerup", pointerUp);
+window.addEventListener("pointercancel", pointerUp);
+
+function overlayOpen(){
+  return document.getElementById("catchScrim").classList.contains("on") ||
+         document.getElementById("journalScrim").classList.contains("on");
+}
+
+/* ---------------- casting ---------------- */
+function cast(x, y){
+  // pull any fish off previous lure
+  fishes.forEach(f=>{ if(f.state!=="wander"){ f.state="wander"; f.stateT=0; } });
+  lure = {x: W*0.5, y: H+20, tx:x, ty:y, t:0, dip:0, landed:false};
+  mode = "casting";
+}
+function landLure(){
+  lure.landed = true; lure.x = lure.tx; lure.y = lure.ty;
+  mode = "waiting";
+  sfx.plop(); ripple(lure.x, lure.y, 1.3); ripple(lure.x, lure.y, 0.7);
+  if(inBeam(lure.x)) burst(lure.x, lure.y, "#eef1fb", 6);
+}
+
+/* ---------------- hooking & reeling ---------------- */
+function startBite(f){
+  mode = "hookwin"; hookWinT = 0.95;
+  f.state = "biting"; lure.dip = 12;
+  sfx.bite(); ripple(lure.x, lure.y, 1.2);
+}
+function hookFish(){
+  const f = fishes.find(x=>x.state==="biting");
+  if(!f) return;
+  hooked = f; f.state = "hooked";
+  mode = "reeling";
+  reel = {prog:18, tens:12, holding:true, struggle:false, strugT:rand(.8,1.6), calmT:0};
+  document.getElementById("reelUI").classList.add("on");
+  toast("It's on the line!", 1400);
+}
+function missBite(){
+  const f = fishes.find(x=>x.state==="biting");
+  if(f){ f.state="flee"; f.stateT=0; }
+  lure.dip = 0; mode = "waiting";
+  toast("Too slow… it slipped away.", 1800);
+}
+function endReel(success){
+  document.getElementById("reelUI").classList.remove("on");
+  const f = hooked; hooked = null;
+  if(f){
+    const i = fishes.indexOf(f); if(i>=0) fishes.splice(i,1);
+    if(fishes.filter(x=>!x.sp.moonOnly).length < 6) spawnFish();
+  }
+  lure = null;
+  mode = "idle";
+  if(success && f){
+    sfx.catch(f.sp.rarity);
+    burst(W/2, H/2, f.sp.rarity>=3 ? "#f2c14e" : "#eef1fb", 20);
+    showCatch(f.sp);
+  } else {
+    sfx.snap();
+    toast("The line snapped! It vanished into the dark.", 2400);
+  }
+}
+
+/* ---------------- catch card & journal ---------------- */
+const catchScrim = document.getElementById("catchScrim");
+const cardCvs = document.getElementById("cardCanvas");
+const cardCtx = cardCvs.getContext("2d");
+let cardSp = null, cardAnim = 0;
+
+function showCatch(sp){
+  const isNew = !caught[sp.id];
+  caught[sp.id] = (caught[sp.id]||0) + 1;
+  if(isNew){ caughtSpecies++; updateCount(); }
+  document.getElementById("newTag").style.display = isNew ? "inline-block" : "none";
+  document.getElementById("cardName").textContent = sp.name;
+  document.getElementById("cardJp").textContent = sp.jp + " · " + RARITY_NAME[sp.rarity];
+  document.getElementById("cardStars").textContent = STARS[sp.rarity];
+  document.getElementById("cardFlavor").textContent = "“" + sp.flavor + "”";
+  cardSp = sp; cardAnim = 0;
+  catchScrim.classList.add("on");
+
+  if(!hintedMoon && caughtSpecies >= 5 && !caught["tsukiyo"]){
+    hintedMoon = true;
+    setTimeout(()=>toast("Something pale stirs where the moonlight rests on the water…", 4200), 800);
+  }
+  if(sp.id === "tsukiyo"){
+    setTimeout(()=>toast("You caught the moon itself. The pond will remember this.", 4200), 600);
+  }
+}
+document.getElementById("cardBtn").addEventListener("click", ()=>{
+  catchScrim.classList.remove("on"); cardSp = null;
+});
+
+function updateCount(){
+  document.getElementById("countLabel").textContent = caughtSpecies + "/" + SPECIES.length;
+  const btn = document.getElementById("journalBtn");
+  btn.classList.add("pulse"); setTimeout(()=>btn.classList.remove("pulse"), 2200);
+}
+
+/* journal */
+const journalScrim = document.getElementById("journalScrim");
+document.getElementById("journalBtn").addEventListener("click", ()=>{ audio(); openJournal(); });
+document.getElementById("journalClose").addEventListener("click", ()=>journalScrim.classList.remove("on"));
+function openJournal(){
+  const grid = document.getElementById("jGrid");
+  grid.innerHTML = "";
+  document.getElementById("jSub").textContent =
+    caughtSpecies + " of " + SPECIES.length + " spirits recorded" + (caughtSpecies===SPECIES.length ? " — the pond is complete." : "");
+  SPECIES.forEach(sp=>{
+    const slot = document.createElement("div");
+    const got = !!caught[sp.id];
+    slot.className = "jslot " + (got ? "caught" : "unknown");
+    if(got){
+      const c = document.createElement("canvas"); c.width=168; c.height=104;
+      slot.appendChild(c);
+      drawKoiSide(c.getContext("2d"), sp, 1.6, 168, 104, 0.72);
+      const n = document.createElement("div"); n.className="n"; n.textContent = sp.name + " " + sp.jp;
+      const r = document.createElement("div"); r.className="r"; r.textContent = STARS[sp.rarity] + " ×" + caught[sp.id];
+      slot.appendChild(n); slot.appendChild(r);
+    } else {
+      const q = document.createElement("div"); q.className="q"; q.textContent = "?";
+      const n = document.createElement("div"); n.className="n";
+      n.textContent = sp.moonOnly ? "…in the moonlight?" : "not yet met";
+      slot.appendChild(q); slot.appendChild(n);
+    }
+    grid.appendChild(slot);
+  });
+  journalScrim.classList.add("on");
+}
+
+/* ---------------- drawing helpers ---------------- */
+function drawKoiTop(g, f){
+  const sp = f.sp, s = sp.size;
+  const wag = Math.sin(f.wag) * 0.35;
+  g.save();
+  g.translate(f.x, f.y);
+  g.rotate(f.a);
+  const ghost = sp.ghost ? 0.55 : 1;
+  g.globalAlpha = (f.depthA !== undefined ? f.depthA : 0.85) * ghost;
+
+  if(sp.glow){
+    g.shadowColor = sp.glow===3 ? "rgba(238,241,251,.9)" : (sp.glow===2 ? "rgba(207,216,234,.8)" : "rgba(200,240,140,.8)");
+    g.shadowBlur = 10 + sp.glow*6 + Math.sin(f.t*3)*4;
+  }
+  // tail
+  g.fillStyle = sp.fin;
+  g.save();
+  g.translate(-s*1.05, 0); g.rotate(wag*1.4);
+  g.beginPath();
+  g.moveTo(0,0);
+  g.quadraticCurveTo(-s*0.9, -s*0.55, -s*1.25, -s*0.15);
+  g.quadraticCurveTo(-s*0.75, 0, -s*1.25, s*0.15);
+  g.quadraticCurveTo(-s*0.9, s*0.55, 0, 0);
+  g.fill();
+  g.restore();
+  // side fins
+  g.save(); g.rotate(wag*0.5);
+  g.beginPath(); g.ellipse(s*0.15, -s*0.5, s*0.42, s*0.18, -0.5, 0, TAU); g.fill();
+  g.beginPath(); g.ellipse(s*0.15,  s*0.5, s*0.42, s*0.18,  0.5, 0, TAU); g.fill();
+  g.restore();
+  // body
+  g.fillStyle = sp.body;
+  g.beginPath();
+  g.moveTo(s*1.15, 0);
+  g.quadraticCurveTo(s*0.9, -s*0.55, 0, -s*0.5);
+  g.quadraticCurveTo(-s*1.0, -s*0.35 + wag*s*0.3, -s*1.1, wag*s*0.5);
+  g.quadraticCurveTo(-s*1.0, s*0.35 + wag*s*0.3, 0, s*0.5);
+  g.quadraticCurveTo(s*0.9, s*0.55, s*1.15, 0);
+  g.fill();
+  // spots
+  g.save();
+  g.clip();
+  sp.spots.forEach(sd=>{
+    g.fillStyle = sd[0];
+    g.beginPath(); g.ellipse(sd[1]*s*2, sd[2]*s*2, sd[3]*s, sd[3]*s*0.8, 0.3, 0, TAU); g.fill();
+  });
+  g.restore();
+  // whiskers (dragon child)
+  if(sp.whisker){
+    g.strokeStyle = sp.fin; g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(s*1.05,-s*0.12); g.quadraticCurveTo(s*1.6,-s*0.4, s*1.9,-s*0.15); g.stroke();
+    g.beginPath(); g.moveTo(s*1.05, s*0.12); g.quadraticCurveTo(s*1.6, s*0.4, s*1.9, s*0.15); g.stroke();
+  }
+  g.restore();
+}
+
+/* side view for the card / journal */
+function drawKoiSide(g, sp, t, w, h, scale=1){
+  g.clearRect(0,0,w,h);
+  const cx = w/2, cy = h/2 + Math.sin(t*1.4)*3;
+  const s = Math.min(w,h) * 0.26 * scale * (sp.size/16);
+  const wag = Math.sin(t*4)*0.3;
+  g.save(); g.translate(cx, cy);
+  if(sp.glow){
+    g.shadowColor = sp.glow===3 ? "rgba(238,241,251,.95)" : (sp.glow===2 ? "rgba(207,216,234,.85)" : "rgba(200,240,140,.85)");
+    g.shadowBlur = 16 + Math.sin(t*3)*6;
+  }
+  g.globalAlpha = sp.ghost ? 0.7 : 1;
+  // tail
+  g.fillStyle = sp.fin;
+  g.save(); g.translate(-s*1.5,0); g.rotate(wag);
+  g.beginPath(); g.moveTo(0,0);
+  g.quadraticCurveTo(-s*1.1,-s*0.8,-s*1.5,-s*0.25);
+  g.quadraticCurveTo(-s*0.9,0,-s*1.5,s*0.25);
+  g.quadraticCurveTo(-s*1.1,s*0.8,0,0); g.fill();
+  g.restore();
+  // dorsal fin
+  g.beginPath(); g.moveTo(-s*0.6,-s*0.55);
+  g.quadraticCurveTo(0,-s*1.15, s*0.5,-s*0.5); g.closePath(); g.fill();
+  // body
+  const grad = g.createLinearGradient(0,-s,0,s);
+  grad.addColorStop(0, sp.body); grad.addColorStop(1, sp.belly);
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(s*1.6,0);
+  g.quadraticCurveTo(s*0.9,-s*0.85,-s*0.4,-s*0.6);
+  g.quadraticCurveTo(-s*1.5,-s*0.25,-s*1.5,0);
+  g.quadraticCurveTo(-s*1.5,s*0.25,-s*0.4,s*0.6);
+  g.quadraticCurveTo(s*0.9,s*0.85,s*1.6,0);
+  g.fill();
+  g.save(); g.clip();
+  sp.spots.forEach(sd=>{
+    g.fillStyle = sd[0];
+    g.beginPath(); g.ellipse(sd[1]*s*2.4, sd[2]*s*2, sd[3]*s*1.3, sd[3]*s, 0.25, 0, TAU); g.fill();
+  });
+  g.restore();
+  // eye
+  g.fillStyle = "#1b2033";
+  g.beginPath(); g.arc(s*1.05, -s*0.12, Math.max(1.6, s*0.1), 0, TAU); g.fill();
+  // pectoral fin
+  g.fillStyle = sp.fin;
+  g.save(); g.translate(s*0.3, s*0.3); g.rotate(0.6 + wag*0.5);
+  g.beginPath(); g.ellipse(0,0,s*0.5,s*0.2,0,0,TAU); g.fill(); g.restore();
+  if(sp.whisker){
+    g.strokeStyle = sp.fin; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(s*1.45,-s*0.05); g.quadraticCurveTo(s*2.1,-s*0.5, s*2.4,-s*0.2); g.stroke();
+    g.beginPath(); g.moveTo(s*1.45, s*0.1); g.quadraticCurveTo(s*2.1, s*0.5, s*2.4, s*0.25); g.stroke();
+  }
+  g.restore();
+  // bubbles
+  g.fillStyle = "rgba(238,241,251,.35)";
+  for(let i=0;i<3;i++){
+    const bx = cx + s*1.9 + i*9, by = cy - ((t*30 + i*22) % 60);
+    g.beginPath(); g.arc(bx, by, 2.2 - i*0.4, 0, TAU); g.fill();
+  }
+}
+
+/* ---------------- update ---------------- */
+let last = performance.now();
+function update(dt, t){
+  // decor
+  fireflies.forEach(fl=>{ fl.t += dt*fl.sp; });
+  if(!shoot && Math.random() < dt*0.02) shoot = {x:rand(.1,.6)*W, y:rand(.03,.14)*H, t:0};
+  if(shoot){ shoot.t += dt; if(shoot.t > 1) shoot = null; }
+
+  // ripples
+  for(let i=ripples.length-1;i>=0;i--){
+    const r = ripples[i]; r.r += r.sp*dt; r.a -= dt*0.55;
+    if(r.a<=0 || r.r>r.max) ripples.splice(i,1);
+  }
+  for(let i=sparkles.length-1;i>=0;i--){
+    const s = sparkles[i]; s.t += dt;
+    s.x += s.vx*dt; s.y += s.vy*dt; s.vy += 60*dt;
+    if(s.t > s.life) sparkles.splice(i,1);
+  }
+  shake = Math.max(0, shake - dt*8);
+
+  // tsukiyo spawner
+  if(!caught["tsukiyo"] || Math.random()<0.0001){
+    tsukiyoTimer -= dt;
+    if(tsukiyoTimer <= 0 && !fishes.some(f=>f.sp.moonOnly)){
+      spawnFish(SPECIES.find(s=>s.id==="tsukiyo"), true);
+      tsukiyoTimer = rand(40, 70);
+    }
+  }
+
+  // lure flight
+  if(mode==="casting" && lure){
+    lure.t += dt*1.6;
+    const tt = Math.min(1, lure.t);
+    lure.x = lerp(W*0.5, lure.tx, tt);
+    lure.y = lerp(H+20, lure.ty, tt) - Math.sin(tt*Math.PI)*120;
+    if(tt>=1) landLure();
+  }
+  if(lure && lure.landed){
+    lure.dip = lerp(lure.dip, (mode==="hookwin" ? 12 : 0), dt*8);
+  }
+
+  // hook window countdown
+  if(mode==="hookwin"){
+    hookWinT -= dt;
+    if(hookWinT <= 0) missBite();
+  }
+
+  // reeling
+  if(mode==="reeling" && hooked){
+    const fgt = hooked.sp.fight;
+    if(reel.struggle){
+      reel.strugT -= dt;
+      if(Math.random()<dt*10) sfx.strain();
+      if(reel.strugT<=0){ reel.struggle=false; reel.calmT = rand(0.9, 2.0)/Math.sqrt(fgt); }
+    } else {
+      reel.calmT -= dt;
+      if(reel.calmT<=0){ reel.struggle=true; reel.strugT = rand(0.5, 1.0)*Math.sqrt(fgt); shake = 1; }
+    }
+    if(reel.holding){
+      reel.prog += dt * (reel.struggle ? 5 : 16) / fgt * 1.15;
+      reel.tens += dt * (reel.struggle ? 62 : 14) * (0.8 + fgt*0.25);
+    } else {
+      reel.prog -= dt * 3.5;
+      reel.tens -= dt * 50;
+    }
+    reel.prog = clamp(reel.prog, 0, 100);
+    reel.tens = clamp(reel.tens, 0, 100);
+    // fish thrash motion toward/away
+    hooked.wag += dt * (reel.struggle ? 22 : 10);
+    const dx = lure.x - hooked.x, dy = lure.y - hooked.y;
+    hooked.a = Math.atan2(dy, dx) + Math.sin(hooked.wag)*0.4;
+    const pull = reel.struggle ? -30 : (reel.holding ? 26 : 0);
+    const d = Math.hypot(dx,dy) || 1;
+    hooked.x += (dx/d) * pull * dt * -1;
+    hooked.y += (dy/d) * pull * dt * -1;
+    hooked.x = clamp(hooked.x, lure.x-90, lure.x+90);
+    hooked.y = clamp(hooked.y, Math.max(WATERLINE+30, lure.y-90), Math.min(H-20, lure.y+90));
+
+    document.getElementById("progFill").style.transform = "scaleX(" + (reel.prog/100) + ")";
+    document.getElementById("tensFill").style.transform = "scaleX(" + (reel.tens/100) + ")";
+    document.getElementById("reelUI").classList.toggle("strain", reel.tens>70);
+
+    if(reel.tens >= 100) endReel(false);
+    else if(reel.prog >= 100) endReel(true);
+  }
+
+  // fish AI
+  for(let i=fishes.length-1;i>=0;i--){
+    const f = fishes[i];
+    f.t += dt; f.wag += dt * (4 + f.speed*0.12);
+    f.life -= dt;
+    if(f.life <= 0 && f.state==="wander"){ // moon koi fades away
+      fishes.splice(i,1); continue;
+    }
+    if(f.state==="hooked") continue;
+
+    if(f.state==="wander"){
+      // moon koi stays in the beam
+      if(f.sp.moonOnly){
+        const b = beam();
+        if(Math.abs(f.x-b.x) > b.w/2 - 14) f.turn = (b.x - f.x > 0 ? 1 : -1) * 2.2;
+      }
+      if(Math.random() < dt*0.8) f.turn = rand(-1.6, 1.6);
+      f.a += f.turn * dt;
+      // soft walls
+      const m = 46;
+      if(f.x<m) f.a = lerpAngle(f.a, 0, dt*3);
+      if(f.x>W-m) f.a = lerpAngle(f.a, Math.PI, dt*3);
+      if(f.y<WATERLINE+m) f.a = lerpAngle(f.a, Math.PI/2, dt*3);
+      if(f.y>H-m) f.a = lerpAngle(f.a, -Math.PI/2, dt*3);
+      f.x += Math.cos(f.a)*f.speed*dt;
+      f.y += Math.sin(f.a)*f.speed*dt;
+
+      // notice the lure
+      if(mode==="waiting" && lure && lure.landed){
+        const d = Math.hypot(lure.x-f.x, lure.y-f.y);
+        const canBite = !f.sp.moonOnly || inBeam(lure.x);
+        if(canBite && d < 150 && Math.random() < dt * f.sp.curiosity * 0.9){
+          if(!fishes.some(o=>o.state==="approach"||o.state==="nibbling"||o.state==="biting")){
+            f.state="approach"; f.stateT=0; f.nibbles = 1 + (Math.random()*3|0);
+          }
+        }
+      }
+    }
+    else if(f.state==="approach"){
+      if(mode!=="waiting" || !lure){ f.state="wander"; continue; }
+      const dx = lure.x-f.x, dy = lure.y-f.y, d = Math.hypot(dx,dy);
+      f.a = lerpAngle(f.a, Math.atan2(dy,dx), dt*2.5);
+      f.x += Math.cos(f.a)*f.speed*1.3*dt;
+      f.y += Math.sin(f.a)*f.speed*1.3*dt;
+      if(d < 34){ f.state="nibbling"; f.stateT = rand(.4,.9); }
+    }
+    else if(f.state==="nibbling"){
+      if(mode!=="waiting" || !lure){ f.state="wander"; continue; }
+      f.stateT -= dt;
+      if(f.stateT<=0){
+        if(f.nibbles > 0){
+          f.nibbles--;
+          sfx.nibble(); ripple(lure.x, lure.y, 0.55); lure.dip = 5;
+          f.stateT = rand(.5, 1.1);
+        } else {
+          if(Math.random() < 0.7 || f.sp.moonOnly) startBite(f);
+          else { f.state="flee"; f.stateT=0; toast("It sniffed the lure and drifted off…", 1600); }
+        }
+      } else {
+        lure.dip = lerp(lure.dip, 0, dt*6);
+        // hover near lure
+        const ha = f.t*2;
+        f.x = lure.x + Math.cos(ha)*26 - Math.cos(f.a)*10;
+        f.y = lure.y + Math.sin(ha)*16;
+        f.a = Math.atan2(lure.y-f.y, lure.x-f.x);
+      }
+    }
+    else if(f.state==="biting"){
+      f.x = lerp(f.x, lure.x - Math.cos(f.a)*14, dt*10);
+      f.y = lerp(f.y, lure.y - Math.sin(f.a)*14, dt*10);
+    }
+    else if(f.state==="flee"){
+      f.stateT += dt;
+      f.x += Math.cos(f.a+Math.PI)*f.speed*3*dt;
+      f.y += Math.sin(f.a+Math.PI)*f.speed*3*dt;
+      if(f.stateT > 1.4){ f.state="wander";
+        f.x = clamp(f.x, 30, W-30); f.y = clamp(f.y, WATERLINE+40, H-30);
+      }
+    }
+  }
+
+  // keep population up
+  if(fishes.filter(f=>!f.sp.moonOnly).length < 6 && Math.random()<dt*0.4) spawnFish();
+
+  // card animation
+  if(cardSp){ cardAnim += dt; drawKoiSide(cardCtx, cardSp, cardAnim, 440, 220); }
+}
+function lerpAngle(a, b, t){
+  let d = (b - a) % TAU;
+  if(d > Math.PI) d -= TAU; if(d < -Math.PI) d += TAU;
+  return a + d * Math.min(1, t);
+}
+
+/* ---------------- render ---------------- */
+function render(t){
+  const sx = (Math.random()-0.5) * shake * 5, sy = (Math.random()-0.5) * shake * 5;
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  /* sky */
+  const sky = ctx.createLinearGradient(0,0,0,WATERLINE);
+  sky.addColorStop(0, "#0a0e26");
+  sky.addColorStop(0.7, "#141b40");
+  sky.addColorStop(1, "#1d2750");
+  ctx.fillStyle = sky; ctx.fillRect(-10,-10,W+20,WATERLINE+10);
+
+  // stars
+  stars.forEach(s=>{
+    const a = 0.35 + 0.65*Math.abs(Math.sin(t*s.sp + s.tw));
+    ctx.globalAlpha = a;
+    ctx.fillStyle = "#eef1fb";
+    ctx.beginPath(); ctx.arc(s.x*W, s.y*WATERLINE, s.r, 0, TAU); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  if(shoot){
+    const sxx = shoot.x + shoot.t*260, syy = shoot.y + shoot.t*90;
+    const g = ctx.createLinearGradient(sxx-70, syy-24, sxx, syy);
+    g.addColorStop(0,"rgba(238,241,251,0)"); g.addColorStop(1,"rgba(238,241,251,"+(0.8*(1-shoot.t))+")");
+    ctx.strokeStyle = g; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(sxx-70, syy-24); ctx.lineTo(sxx, syy); ctx.stroke();
+  }
+
+  // moon + halo
+  const mx = moonX(), my = moonY(), mr = clamp(W*0.05, 26, 44);
+  const halo = ctx.createRadialGradient(mx,my,mr*0.4, mx,my,mr*4);
+  halo.addColorStop(0,"rgba(238,241,251,.35)"); halo.addColorStop(1,"rgba(238,241,251,0)");
+  ctx.fillStyle = halo; ctx.fillRect(mx-mr*4,my-mr*4,mr*8,mr*8);
+  ctx.fillStyle = "#eef1fb";
+  ctx.beginPath(); ctx.arc(mx,my,mr,0,TAU); ctx.fill();
+  ctx.fillStyle = "rgba(196,205,230,.5)";
+  ctx.beginPath(); ctx.arc(mx-mr*0.3,my-mr*0.15,mr*0.16,0,TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx+mr*0.25,my+mr*0.28,mr*0.11,0,TAU); ctx.fill();
+
+  // distant hills
+  ctx.fillStyle = "#101636";
+  ctx.beginPath(); ctx.moveTo(0,WATERLINE);
+  for(let x=0;x<=W;x+=20) ctx.lineTo(x, WATERLINE - 26 - Math.sin(x*0.006+1)*20 - Math.sin(x*0.017)*8);
+  ctx.lineTo(W,WATERLINE); ctx.closePath(); ctx.fill();
+
+  /* water */
+  const wat = ctx.createLinearGradient(0,WATERLINE,0,H);
+  wat.addColorStop(0,"#1b4a5c");
+  wat.addColorStop(0.45,"#123c4d");
+  wat.addColorStop(1,"#0a2233");
+  ctx.fillStyle = wat; ctx.fillRect(-10,WATERLINE,W+20,H-WATERLINE+10);
+
+  // moon reflection beam — the signature
+  const b = beam();
+  const beamG = ctx.createLinearGradient(0,WATERLINE,0,H);
+  beamG.addColorStop(0,"rgba(238,241,251,.34)");
+  beamG.addColorStop(1,"rgba(238,241,251,.05)");
+  ctx.fillStyle = beamG;
+  ctx.beginPath();
+  const wob = (y)=> Math.sin(y*0.03 + t*1.6)*7 + Math.sin(y*0.011 - t*0.8)*10;
+  ctx.moveTo(b.x - b.w/2 + wob(WATERLINE), WATERLINE);
+  for(let y=WATERLINE;y<=H;y+=14) ctx.lineTo(b.x - b.w/2 + wob(y) - (y-WATERLINE)*0.03, y);
+  for(let y=H;y>=WATERLINE;y-=14) ctx.lineTo(b.x + b.w/2 + wob(y+40) + (y-WATERLINE)*0.03, y);
+  ctx.closePath(); ctx.fill();
+  // glints in beam
+  for(let i=0;i<8;i++){
+    const gy = WATERLINE + ((t*22 + i*97) % (H-WATERLINE));
+    const gx = b.x + Math.sin(gy*0.05 + i)*b.w*0.32;
+    ctx.globalAlpha = 0.25 + 0.25*Math.sin(t*3+i);
+    ctx.fillStyle = "#eef1fb";
+    ctx.beginPath(); ctx.ellipse(gx, gy, 9, 1.6, 0, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // gentle surface lines
+  ctx.strokeStyle = "rgba(238,241,251,.06)";
+  ctx.lineWidth = 1;
+  for(let i=0;i<5;i++){
+    const y = WATERLINE + 14 + i*22;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=24){
+      const yy = y + Math.sin(x*0.02 + t*1.2 + i)*2.5;
+      x===0 ? ctx.moveTo(x,yy) : ctx.lineTo(x,yy);
+    }
+    ctx.stroke();
+  }
+
+  /* fish (under everything floating) */
+  fishes.forEach(f=>{
+    const depth = (f.y - WATERLINE)/(H-WATERLINE);
+    f.depthA = lerp(0.9, 0.55, depth);
+    // shadow
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(f.x, f.y+f.sp.size*0.8, f.sp.size*1.5, f.sp.size*0.5, f.a, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    drawKoiTop(ctx, f);
+    if(Math.random() < 0.004) ripple(f.x, f.y, 0.5);
+  });
+
+  /* ripples */
+  ripples.forEach(r=>{
+    ctx.globalAlpha = r.a;
+    ctx.strokeStyle = "#dfe6f5"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.ellipse(r.x, r.y, r.r, r.r*0.42, 0, 0, TAU); ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+
+  /* lily pads & reeds */
+  pads.forEach(p=>{
+    const bob = Math.sin(t*0.9 + p.bob)*2;
+    ctx.save(); ctx.translate(p.x, p.y + bob); ctx.rotate(p.a);
+    ctx.fillStyle = "#1d5c4c";
+    ctx.beginPath(); ctx.ellipse(0,0,p.r,p.r*0.6,0,0.35,TAU-0.15); ctx.lineTo(0,0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "rgba(238,241,251,.07)";
+    ctx.beginPath(); ctx.ellipse(-p.r*0.2,-p.r*0.12,p.r*0.55,p.r*0.3,0,0,TAU); ctx.fill();
+    if(p.flower){
+      ctx.fillStyle = "#f4a7b9";
+      for(let i=0;i<6;i++){
+        ctx.save(); ctx.rotate(i*TAU/6);
+        ctx.beginPath(); ctx.ellipse(0,-7,3.4,7,0,0,TAU); ctx.fill(); ctx.restore();
+      }
+      ctx.fillStyle = "#f2c14e";
+      ctx.beginPath(); ctx.arc(0,0,3,0,TAU); ctx.fill();
+    }
+    ctx.restore();
+  });
+  reeds.forEach(r=>{
+    const bx = (r.left ? r.x*0.14 : 0.86 + r.x*0.14) * W;
+    const by = H - 4;
+    const sway = Math.sin(t*1.1 + r.ph)*5;
+    ctx.strokeStyle = "#173b32"; ctx.lineWidth = 3.4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + r.lean*60, by - r.h*0.6, bx + r.lean*100 + sway, by - r.h);
+    ctx.stroke();
+    ctx.fillStyle = "#20503f";
+    ctx.beginPath(); ctx.ellipse(bx + r.lean*100 + sway, by - r.h - 7, 3.4, 9, r.lean, 0, TAU); ctx.fill();
+  });
+
+  /* fireflies */
+  fireflies.forEach(fl=>{
+    const fx = (fl.x + Math.sin(fl.t*0.7)*0.03)*W;
+    const fy = fl.y*H + Math.sin(fl.t)*fl.amp;
+    const a = 0.25 + 0.75*Math.abs(Math.sin(fl.t*1.7));
+    ctx.globalAlpha = a;
+    ctx.shadowColor = "rgba(242,222,120,.9)"; ctx.shadowBlur = 10;
+    ctx.fillStyle = "#f6e08a";
+    ctx.beginPath(); ctx.arc(fx, fy, 2, 0, TAU); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+  ctx.globalAlpha = 1;
+
+  /* line + lure */
+  if(lure){
+    const ly = lure.y + (lure.landed ? lure.dip + Math.sin(t*2)*1.5 : 0);
+    ctx.strokeStyle = "rgba(238,241,251,.4)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(W*0.5, H+8);
+    ctx.quadraticCurveTo(lerp(W*0.5,lure.x,0.5), Math.min(ly, H)-60, lure.x, ly);
+    ctx.stroke();
+    // bobber
+    ctx.fillStyle = "#e86a5d";
+    ctx.beginPath(); ctx.arc(lure.x, ly, 6, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = "#f4f2ee";
+    ctx.beginPath(); ctx.arc(lure.x, ly, 6, 0, Math.PI); ctx.fill();
+    if(lure.landed && Math.random()<0.02) ripple(lure.x, ly, 0.4);
+    // hook window "!"
+    if(mode==="hookwin"){
+      const bump = Math.sin(t*18)*3;
+      ctx.font = "700 30px -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f2c14e";
+      ctx.shadowColor = "rgba(242,193,78,.8)"; ctx.shadowBlur = 14;
+      ctx.fillText("!", lure.x, ly - 26 + bump);
+      ctx.shadowBlur = 0;
+      ctx.font = "600 13px -apple-system, sans-serif";
+      ctx.fillStyle = "#eef1fb";
+      ctx.fillText("TAP!", lure.x, ly - 56 + bump);
+    }
+  }
+
+  /* sparkles */
+  sparkles.forEach(s=>{
+    ctx.globalAlpha = 1 - s.t/s.life;
+    ctx.fillStyle = s.c;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  /* soft mist over water edge */
+  const mist = ctx.createLinearGradient(0,WATERLINE-16,0,WATERLINE+30);
+  mist.addColorStop(0,"rgba(143,163,200,0)");
+  mist.addColorStop(0.5,"rgba(143,163,200,.13)");
+  mist.addColorStop(1,"rgba(143,163,200,0)");
+  ctx.fillStyle = mist; ctx.fillRect(0,WATERLINE-16,W,46);
+
+  ctx.restore();
+}
+
+/* ---------------- main loop ---------------- */
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  const t = now/1000;
+  if(!overlayOpen() || cardSp) update(dt, t);
+  render(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
